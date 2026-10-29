@@ -12,20 +12,8 @@
   let pinned = false;
   let isPeek = false;
 
-  // Approximate registrable domain ("docs.google.com" -> "google.com",
-  // "news.bbc.co.uk" -> "bbc.co.uk"). Extensions can't read Firefox's public
-  // suffix list, so two-letter country TLDs with a short second label
-  // (co.uk, com.au, ne.jp) are treated as a single suffix.
-  function siteOf(hostname) {
-    const labels = hostname.replace(/^www\./, "").split(".");
-    if (labels.length <= 2 || /^\d+$/.test(labels.at(-1))) return labels.join(".");
-    const [sld, tld] = labels.slice(-2);
-    const take = tld.length === 2 && sld.length <= 3 ? 3 : 2;
-    return labels.slice(-take).join(".");
-  }
-
-  function isExcluded(hostname) {
-    return settings.excludedSites.some((s) => hostname === s || hostname.endsWith("." + s));
+  function linkFrom(event) {
+    return event.composedPath().find((el) => el instanceof HTMLAnchorElement && el.href);
   }
 
   function shouldPeek(link, event) {
@@ -40,17 +28,28 @@
       return false;
     }
     if (url.protocol !== "http:" && url.protocol !== "https:") return false;
-    if (isExcluded(location.hostname)) return false;
+    if (isExcludedHost(location.hostname, settings.excludedSites)) return false;
     return siteOf(url.hostname) !== siteOf(location.hostname);
   }
 
   function onClick(event) {
     if (isPeek) return;
-    const link = event.composedPath().find((el) => el instanceof HTMLAnchorElement && el.href);
+    const link = linkFrom(event);
     if (!link || !shouldPeek(link, event)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     browser.runtime.sendMessage({ type: "open", url: link.href });
+  }
+
+  // The background script peeks new tabs this page opens. When the user is
+  // deliberately opening a link in a new tab (Cmd/Ctrl-click, middle-click,
+  // the context menu), tell it to stand down.
+  function onDeliberateNewTab(event) {
+    if (isPeek || !linkFrom(event)) return;
+    const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1;
+    if (event.type === "contextmenu" || modified) {
+      browser.runtime.sendMessage({ type: "bypass", kind: event.type === "contextmenu" ? "menu" : "click" });
+    }
   }
 
   function addPeekControls() {
@@ -93,6 +92,10 @@
   // Bubble phase, so pages that handle their own link clicks (SPA routers,
   // menus) get first say and we skip anything they preventDefault().
   document.addEventListener("click", onClick);
+  // Capture phase: the page can't swallow these before we see them.
+  for (const type of ["click", "auxclick", "contextmenu"]) {
+    document.addEventListener(type, onDeliberateNewTab, true);
+  }
 
   browser.storage.local.get("settings").then(({ settings: s = {} }) => {
     settings = { ...DEFAULTS, ...s };

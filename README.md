@@ -4,7 +4,8 @@ Arc-style Peek for Firefox. Click a link to a different site and it opens in a f
 
 - **Open in tab ↗**: a small button in the corner of the popup moves the page into a normal tab. You can also assign a shortcut in `about:addons` → ⚙︎ → Manage Extension Shortcuts.
 - **Esc** closes the popup, unless you're typing in a field.
-- **Cmd/Ctrl-click, Shift-click and middle-click** behave as usual.
+- **Cmd/Ctrl-click, Shift-click, middle-click and "Open Link in New Tab"** behave as usual.
+- **It works in web apps too.** Slack, Notion and Gmail open links with their own JavaScript or through a redirect like `google.com/url`. The extension catches the new tab those apps open and moves it into a peek. Sign-in popups (for example "Sign in with Google") are left alone so they keep working.
 
 ## Settings
 

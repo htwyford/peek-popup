@@ -82,6 +82,75 @@ async function expandPeek(windowId) {
   await closePeek(windowId);
 }
 
+// --- New tabs opened by the page -------------------------------------------
+//
+// Web apps (Slack, Notion, Gmail) handle link clicks themselves and open
+// links with window.open, or route them through a same-site redirector like
+// google.com/url. None of that reaches the content script's click handler, so
+// catch the new tab here, close it, and show its URL in a peek instead.
+
+const BYPASS_MS = { click: 1500, menu: 15000 };
+const WATCH_MS = 10000;
+const bypassUntil = new Map(); // source tabId -> timestamp
+const watching = new Map(); // new tabId -> { source, until }
+
+async function eligibleSource(source) {
+  const s = await getSettings();
+  if (s.mode === "pinned" && !source.pinned) return false;
+  if ((bypassUntil.get(source.id) ?? 0) > Date.now()) return false;
+  if (source.windowId in (await getPeeks())) return false;
+  try {
+    return !isExcludedHost(new URL(source.url).hostname, s.excludedSites);
+  } catch {
+    return false;
+  }
+}
+
+function crossSite(sourceUrl, url) {
+  try {
+    const dest = new URL(url);
+    if (dest.protocol !== "http:" && dest.protocol !== "https:") return false;
+    return siteOf(dest.hostname) !== siteOf(new URL(sourceUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function swapForPeek(tabId, source, url) {
+  watching.delete(tabId);
+  await browser.tabs.remove(tabId).catch(() => {});
+  await openPeek(url, source.windowId);
+}
+
+browser.webNavigation.onCreatedNavigationTarget.addListener(async ({ sourceTabId, tabId, url }) => {
+  let source, tab;
+  try {
+    [source, tab] = await Promise.all([browser.tabs.get(sourceTabId), browser.tabs.get(tabId)]);
+  } catch {
+    return;
+  }
+  // A page that opens its own window (OAuth sign-in, share dialogs) needs
+  // window.opener to keep working, so only take over new tabs.
+  if (tab.windowId !== source.windowId) return;
+  if (!(await eligibleSource(source))) return;
+  if (crossSite(source.url, url)) return swapForPeek(tabId, source, url);
+  // about:blank that the page fills in later, or a same-site redirector:
+  // decide once the tab commits to where it's really going.
+  watching.set(tabId, { source, until: Date.now() + WATCH_MS });
+});
+
+browser.webNavigation.onCommitted.addListener(async ({ tabId, frameId, url }) => {
+  const w = watching.get(tabId);
+  if (!w || frameId !== 0) return;
+  if (Date.now() > w.until) return watching.delete(tabId);
+  if (crossSite(w.source.url, url)) await swapForPeek(tabId, w.source, url);
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+  watching.delete(tabId);
+  bypassUntil.delete(tabId);
+});
+
 browser.windows.onFocusChanged.addListener(async (focusedId) => {
   const peeks = await getPeeks();
   const { closeOnAppBlur } = await getSettings();
@@ -125,6 +194,9 @@ browser.runtime.onMessage.addListener((msg, sender) => {
       return expandPeek(tab.windowId);
     case "close":
       return closePeek(tab.windowId);
+    case "bypass":
+      bypassUntil.set(tab.id, Date.now() + (BYPASS_MS[msg.kind] ?? BYPASS_MS.click));
+      return;
   }
 });
 
