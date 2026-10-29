@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Peek Popup",
+  "version": "1.0.0",
+  "description": "Arc-style Peek: links to other sites open in a floating popup window that closes when you click back into the page you came from.",
+  "author": "Harry Twyford",
+  "homepage_url": "https://github.com/htwyford/peek-popup",
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
+  },
+  "permissions": ["tabs", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "options_ui": {
+    "page": "options/options.html"
+  },
+  "commands": {
+    "expand-peek": {
+      "description": "Open the current Peek in a full tab"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "peek-popup@harrytwyford.com",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}

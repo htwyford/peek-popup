@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <section>
+    <h2>Open links to other sites in a Peek</h2>
+    <label><input type="radio" name="mode" value="pinned"> Only from pinned tabs (Arc)</label>
+    <label><input type="radio" name="mode" value="all"> From every tab</label>
+  </section>
+  <section>
+    <h2>Closing</h2>
+    <label><input type="checkbox" id="closeOnAppBlur"> Also close the Peek when switching to another app</label>
+    <p class="hint">The Peek always closes when you click into another Firefox window. Press Esc to close it, or use "Open in tab" to keep the page.</p>
+  </section>
+  <section>
+    <h2>Size</h2>
+    <label>
+      <input type="range" id="size" min="0.5" max="0.95" step="0.05">
+      <span id="sizeLabel"></span> of the window
+    </label>
+  </section>
+  <section>
+    <h2>Never peek from these sites</h2>
+    <textarea id="excludedSites" rows="5" placeholder="google.com&#10;duckduckgo.com"></textarea>
+    <p class="hint">One domain per line. Links clicked on these sites (and their subdomains) open normally.</p>
+  </section>
+  <script src="options.js"></script>
+</body>
+</html>
