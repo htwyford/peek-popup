@@ -1,0 +1,25 @@
+{
+  "slug": "peek-popup",
+  "summary": {
+    "en-US": "Links from a pinned tab to another site open in a floating window. The floating window disappears if you click away from it."
+  },
+  "description": {
+    "en-US": "Links from a pinned tab to another site open in a floating window. The floating window disappears if you click away from it or press Esc. The \"Open in tab\" button in its corner moves the page to a normal tab.\n\nBy default, the floating window is only shown for cross-origin links opened from a pinned tab. In the extension's settings, you can show it for links from every tab, change its size, close it when you switch to another app, and list sites where links should open normally.\n\nThe extension needs access to all websites to detect link clicks. It doesn't read page content or send data anywhere.\n\nSource: https://github.com/htwyford/peek-popup"
+  },
+  "categories": {
+    "firefox": [
+      "tabs"
+    ]
+  },
+  "homepage": {
+    "en-US": "https://github.com/htwyford/peek-popup"
+  },
+  "requires_payment": false,
+  "version": {
+    "license": "GPL-3.0-only",
+    "release_notes": {
+      "en-US": "First release on addons.mozilla.org."
+    },
+    "approval_notes": "<all_urls> content script: listens for clicks on links to a different site (by registrable domain) and, inside the peek popup window only, adds an \"Open in tab\" button in a closed shadow root. webNavigation.onCreatedNavigationTarget: detects new tabs that page scripts open from a pinned tab (window.open, target=_blank, same-site redirectors) so they can be shown in a popup window instead. tabs and storage: window state and settings. No network requests, no remote code, no data collection. The source is unminified and identical to https://github.com/htwyford/peek-popup."
+  }
+}
