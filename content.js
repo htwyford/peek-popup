@@ -11,6 +11,7 @@
   let settings = { ...DEFAULTS };
   let pinned = false;
   let isPeek = false;
+  let controls = null; // the "Open in tab" button's host element, in a peek
 
   function linkFrom(event) {
     return event.composedPath().find((el) => el instanceof HTMLAnchorElement && el.href);
@@ -55,6 +56,10 @@
   function addPeekControls() {
     const host = document.createElement("div");
     host.style.cssText = "all: initial; position: fixed; top: 10px; right: 10px; z-index: 2147483647;";
+    // A manual popover renders in the browser's top layer, above anything the
+    // page can stack with z-index, including invisible overlays (bot checks,
+    // consent layers) that would otherwise swallow the click.
+    host.setAttribute("popover", "manual");
     const shadow = host.attachShadow({ mode: "closed" });
     shadow.innerHTML = `
       <style>
@@ -76,19 +81,32 @@
         }
       </style>
       <button title="Open in a full tab">Open in tab ↗</button>`;
-    shadow.querySelector("button").addEventListener("click", () =>
-      browser.runtime.sendMessage({ type: "expand" })
-    );
     (document.body ?? document.documentElement).append(host);
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      const el = document.activeElement;
-      if (el?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName)) return;
-      browser.runtime.sendMessage({ type: "close" });
-    });
+    try {
+      host.showPopover();
+    } catch {}
+    controls = host;
   }
 
+  // Registered at document_start, before any page script, so a page that
+  // stops clicks in its own capture listeners can't block the button.
+  function onControlsClick(event) {
+    if (!controls || !event.composedPath().includes(controls)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    browser.runtime.sendMessage({ type: "expand" });
+  }
+
+  function onEscape(event) {
+    if (!isPeek || event.key !== "Escape" || event.defaultPrevented) return;
+    const el = document.activeElement;
+    if (el?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName)) return;
+    browser.runtime.sendMessage({ type: "close" });
+  }
+
+  window.addEventListener("click", onControlsClick, true);
+  // Bubble phase: a page using Esc to close its own dialog gets first say.
+  document.addEventListener("keydown", onEscape);
   // Bubble phase, so pages that handle their own link clicks (SPA routers,
   // menus) get first say and we skip anything they preventDefault().
   document.addEventListener("click", onClick);
