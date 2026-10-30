@@ -23,4 +23,4 @@ npx web-ext run
 npx web-ext lint
 ```
 
-MIT licensed.
+Licensed under the [GNU General Public License v3.0](LICENSE).
